@@ -1,0 +1,13 @@
+# mitmproxy keybindings for the approval queue (installed as <confdir>/keys.yaml).
+# The list shows only held flows (view_filter ~marked). Focus a flow, press a key.
+- {key: a, ctx: [flowlist, flowview], cmd: "egress.allow_once @focus", help: "allow once"}
+- {key: x, ctx: [flowlist, flowview], cmd: "egress.deny_once @focus", help: "deny once"}
+- {key: A, ctx: [flowlist, flowview], cmd: "egress.allow_host @focus", help: "allow host (any path)"}
+- {key: X, ctx: [flowlist, flowview], cmd: "egress.deny_host @focus", help: "deny host"}
+- {key: p, ctx: [flowlist, flowview], cmd: "egress.allow_path @focus", help: "allow first two path segments (org/repo)"}
+- {key: P, ctx: [flowlist, flowview], cmd: "egress.deny_path @focus", help: "deny first two path segments"}
+- {key: t, ctx: [flowlist, flowview], cmd: "egress.passthrough_host @focus", help: "passthrough host (no TLS interception)"}
+- {key: F, ctx: [flowlist, flowview], cmd: "egress.forget @focus", help: "forget all rules for this host"}
+- {key: L, ctx: [flowlist, flowview], cmd: "egress.list", help: "list rules in the event log"}
+- {key: "1", ctx: [flowlist, flowview], cmd: "console.command egress.allow_prefix @focus ", help: "allow custom path prefix"}
+- {key: "2", ctx: [flowlist, flowview], cmd: "console.command egress.deny_prefix @focus ", help: "deny custom path prefix"}

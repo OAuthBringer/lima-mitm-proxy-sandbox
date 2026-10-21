@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Admin CLI for rules.json (run in the guest with sudo). The proxy hot-reloads the file.
+
+  sudo egress-rule list
+  sudo egress-rule allow|deny|passthrough HOST [PATH_PREFIX]
+  sudo egress-rule forget HOST [PATH_PREFIX]
+"""
+import json
+import os
+import posixpath
+import sys
+import urllib.parse
+
+PATH = "/var/lib/egress/rules.json"
+
+
+def norm_path(p):
+    p = urllib.parse.unquote(urllib.parse.urlsplit(p).path).lower().rstrip("*")
+    p = posixpath.normpath("/" + p.lstrip("/"))
+    return p.rstrip("/") or "/"
+
+
+def load():
+    try:
+        return json.load(open(PATH))
+    except FileNotFoundError:
+        return {"version": 1, "rules": []}
+
+
+def save(d):
+    tmp = PATH + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(d, f, indent=2)
+        f.write("\n")
+    os.chmod(tmp, 0o600)
+    os.chown(tmp, *[os.stat("/var/lib/egress")[i] for i in (4, 5)])
+    os.replace(tmp, PATH)
+
+
+def main(argv):
+    if not argv or argv[0] not in ("list", "allow", "deny", "passthrough", "forget"):
+        sys.exit(__doc__)
+    d = load()
+    if argv[0] == "list":
+        for r in d["rules"]:
+            print(f"{r['action']:<11} {r['host']}{r['path'] or ''}")
+        print(f"{len(d['rules'])} rule(s)")
+        return
+    host = argv[1].lower().rstrip(".")
+    path = norm_path(argv[2]) if len(argv) > 2 else None
+    path = None if path == "/" else path
+    d["rules"] = [r for r in d["rules"] if not (r["host"] == host and (r["path"] == path or (argv[0] == "forget" and path is None)))]
+    if argv[0] != "forget":
+        d["rules"].append({"action": argv[0], "host": host, "path": path})
+    save(d)
+
+
+main(sys.argv[1:])

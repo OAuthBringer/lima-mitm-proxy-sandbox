@@ -1,0 +1,24 @@
+[Unit]
+Description=Egress approval proxy (mitmproxy TUI inside tmux)
+After=network-online.target nftables.service
+Wants=nftables.service
+
+[Service]
+Type=simple
+User=egress
+Group=egress
+RuntimeDirectory=egress
+RuntimeDirectoryMode=0750
+Environment=TERM=xterm-256color
+ExecStart=/usr/local/bin/egress-session
+ExecStop=/usr/bin/tmux -S /run/egress/tmux.sock kill-server
+Restart=always
+RestartSec=2
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/egress /var/log/egress /run/egress
+
+[Install]
+WantedBy=multi-user.target

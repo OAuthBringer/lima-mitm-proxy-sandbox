@@ -1,0 +1,9 @@
+#!/bin/bash
+# systemd entry point: start the detached tmux session running the proxy TUI, then stay
+# alive for as long as the session does (so systemd restarts everything if it dies).
+set -eu
+SOCK=/run/egress/tmux.sock
+tmux -S "$SOCK" kill-server 2>/dev/null || true
+tmux -f /etc/egress/tmux.conf -S "$SOCK" new-session -d -s egress /usr/local/bin/egress-run
+while tmux -S "$SOCK" has-session -t egress 2>/dev/null; do sleep 2; done
+exit 1

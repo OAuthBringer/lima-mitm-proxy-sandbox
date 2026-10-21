@@ -1,0 +1,16 @@
+#!/bin/bash
+# Started inside tmux by egress-proxy.service. Optional corporate-proxy chaining via
+# /etc/egress/upstream.env (EGRESS_UPSTREAM=http://proxy.corp:3128, EGRESS_UPSTREAM_CA=/path.pem).
+set -eu
+[ -f /etc/egress/upstream.env ] && . /etc/egress/upstream.env
+mode="regular@127.0.0.1:8080"
+[ -n "${EGRESS_UPSTREAM:-}" ] && mode="upstream:${EGRESS_UPSTREAM}@127.0.0.1:8080"
+extra=()
+[ -n "${EGRESS_UPSTREAM_CA:-}" ] && extra+=(--set "ssl_verify_upstream_trusted_ca=${EGRESS_UPSTREAM_CA}")
+exec /opt/mitmproxy/bin/mitmproxy \
+  --set confdir=/var/lib/egress/mitm \
+  --mode "$mode" \
+  -s /etc/egress/addon.py \
+  --set connection_strategy=lazy \
+  --set view_filter='~marked' \
+  "${extra[@]}"
