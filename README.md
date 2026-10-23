@@ -5,8 +5,8 @@ Nothing from the host is mounted, no host credentials enter the VM, and **all** 
 traffic goes through a mitmproxy approval queue where you allow or deny by host or URL path.
 Destroy and rebuild it every day.
 
-All state lives under `~/lima` (`LIMA_HOME=~/lima/.lima`, set by `env.sh`). The only thing
-Lima keeps elsewhere is its download cache (`~/Library/Caches/lima`). `source ~/lima/env.sh`
+All state lives under this checkout (`LIMA_HOME=<checkout>/.lima`, set by `env.sh`, e.g. `~/dev/lima`). The only thing
+Lima keeps elsewhere is its download cache (`~/Library/Caches/lima`). `source ~/dev/lima/env.sh`
 in any shell where you want to run `limactl` against this VM.
 
 ## Layout
@@ -28,16 +28,16 @@ in any shell where you want to run `limactl` against this VM.
 Lima 2.2.1 is already installed (`/opt/homebrew/bin/limactl`). Then:
 
 ```sh
-~/lima/reset.sh        # no VM yet, so this just builds one (~10 min the first time)
-~/lima/verify.sh       # expect ALL CHECKS PASSED
+~/dev/lima/reset.sh        # no VM yet, so this just builds one (~10 min the first time)
+~/dev/lima/verify.sh       # expect ALL CHECKS PASSED
 ```
 
 ## Daily workflow
 
 ```sh
-source ~/lima/env.sh
-~/lima/reset.sh                                   # 1. saves rules, deletes, rebuilds, restores rules
-~/lima/verify.sh                                  #    (optional) prove the guarantees still hold
+source ~/dev/lima/env.sh
+~/dev/lima/reset.sh                                   # 1. saves rules, deletes, rebuilds, restores rules
+~/dev/lima/verify.sh                                  #    (optional) prove the guarantees still hold
 
 # terminal A: the approval UI (leave it open; detach with ctrl-b d)
 limactl shell agent -- egress-ui
