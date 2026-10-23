@@ -1,1 +1,7 @@
 .lima/
+
+# Markdown: only the root README.md and everything under docs/ may be committed.
+*.md
+!/README.md
+!/docs/
+!/docs/**/*.md

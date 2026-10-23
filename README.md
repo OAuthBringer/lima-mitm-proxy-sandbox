@@ -9,6 +9,7 @@ All state lives under this checkout (`LIMA_HOME=<checkout>/.lima`, set by `env.s
 Lima keeps elsewhere is its download cache. Run the commands below from the checkout root, and
 `source env.sh` in any shell where you want to run `limactl` against this VM. The `Makefile`
 sets `LIMA_HOME` itself; run `make` for the list of lifecycle targets.
+See [docs/TESTING.md](docs/TESTING.md) for how to verify and manually test the sandbox.
 
 ## Layout
 

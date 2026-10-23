@@ -32,6 +32,11 @@ fi
 limactl start --name="$VM" --tty=false "$ROOT/agent.yaml"
 PUSH_RULES=1 "$ROOT/provision/push-config.sh"
 
+# verify.sh plants a throwaway marker rule to prove rules survive a rebuild. It has now done
+# its job (it was restored into the new VM above), so keep it out of the saved host copy.
+jq '.rules |= map(select(.host != "verify-persist.invalid"))' "$ROOT/egress/rules.json" > "$ROOT/egress/rules.json.new" \
+  && mv "$ROOT/egress/rules.json.new" "$ROOT/egress/rules.json"
+
 echo "--- status ---"
 limactl list "$VM"
 limactl shell "$VM" -- bash -c '

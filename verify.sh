@@ -113,7 +113,9 @@ host $hostcurl"; else fail "dev server isolation" "guest: $up
 new host listeners: $new
 $hostcurl"; fi
 
-# leave evidence for --post-reset
+# Leave a throwaway marker for --post-reset to find after ./reset.sh. The .invalid TLD can never
+# resolve, so the rule matches no real traffic; reset.sh strips it from the saved rules and
+# --post-reset removes it from the live VM.
 rule allow verify-persist.invalid
 as_agent 'echo marker > /home/agent/session-marker' >/dev/null
 
