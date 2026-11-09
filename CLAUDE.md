@@ -1,5 +1,8 @@
 # Project conventions
 
+New to the project? Read `docs/DESIGN.md` first: purpose, policy decisions, current state and open work.
+Keep its "Current state" and "Untested and open" sections accurate when you finish something.
+
 ## No hard-coded paths in docs or code
 
 Never write machine-specific or checkout-specific paths (e.g. `~/dev/<repo>`, `/Users/<name>/...`,

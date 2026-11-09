@@ -29,6 +29,19 @@ if [ "${1:-}" = "--post-reset" ]; then
   [ "$fails" = 0 ]; exit $?
 fi
 
+# The checks below add and forget rules for real hosts (including the ones in the default allow
+# list), so run them against an empty rule set and put the operator's rules back afterwards.
+SNAP=$(mktemp); EMPTY=$(mktemp); restored=0
+admin sudo cat /var/lib/egress/rules.json >"$SNAP"
+jq -e '.rules|type=="array"' "$SNAP" >/dev/null || { echo "cannot snapshot the live rules; aborting" >&2; exit 2; }
+install_rules() {
+  limactl copy "$1" "$VM:/tmp/rules.verify.json" >/dev/null 2>&1 \
+    && limactl shell "$VM" -- sudo install -m 0600 -o egress -g egress /tmp/rules.verify.json /var/lib/egress/rules.json >/dev/null 2>&1
+  sleep 2.5
+}
+trap '[ "$restored" = 1 ] || install_rules "$SNAP"; rm -f "$SNAP" "$EMPTY"' EXIT
+echo '{"version":1,"rules":[]}' >"$EMPTY"; install_rules "$EMPTY"
+
 echo "== isolation =="
 out=$(admin bash -c 'ls /Users 2>&1; echo ---; mount | grep -E "virtiofs|sshfs|9p|/Users|/Volumes" || echo "(no host-style mounts)"; findmnt -rn -t virtiofs,fuse.sshfs,9p || echo "(no virtiofs/sshfs/9p)"'); rc=$?
 if grep -q 'No such file' <<<"$out" && grep -q 'no host-style mounts' <<<"$out" && grep -q 'no virtiofs' <<<"$out"; then pass "no host mounts in guest" "$out"; else fail "no host mounts in guest" "$out"; fi
@@ -98,6 +111,28 @@ out=$(as_agent 'rm -rf /tmp/t3; git clone -q --depth 1 https://github.com/'$TEST
 out=$(as_agent 'curl -sS --max-time 8 -o /dev/null -w "%{http_code}" https://github.com/torvalds/linux; echo " rc=$?"'); grep -q -E 'rc=28|rc=2[0-9]|000' <<<"$out" && pass "other GitHub path is still held (curl timed out)" "$out" || fail "other GitHub path is still held" "$out"
 rule deny github.com "/$TEST_ORG_REPO/blob"
 out=$(as_agent 'curl -sS --max-time 15 -o /dev/null -w "%{http_code}" https://github.com/'$TEST_ORG_REPO'/blob/master/README'); [ "$out" = 403 ] && pass "longer deny prefix beats shorter allow prefix" "HTTP $out" || fail "longer deny prefix beats allow" "$out"
+
+echo "== method rules and the detailed log =="
+rule deny -m POST,PUT,PATCH,DELETE github.com "/$TEST_ORG_REPO"
+out=$(as_agent 'curl -sS --max-time 15 -o /dev/null -w "%{http_code}" -X POST https://github.com/'$TEST_ORG_REPO); [ "$out" = 403 ] && pass "POST refused by a method-restricted deny on an allowed repo" "HTTP $out" || fail "POST refused by method deny" "$out"
+out=$(as_agent 'curl -sS --max-time 15 -o /dev/null -w "%{http_code}" https://github.com/'$TEST_ORG_REPO); [ "$out" != 403 ] && [ "$out" != 000 ] && pass "GET on the same path still allowed" "HTTP $out" || fail "GET on the same path still allowed" "$out"
+entry=$(admin sudo grep '"method": "POST", "host": "github.com"' /var/log/egress/decisions.log | tail -1)
+jq -e '.decision=="deny" and .by=="rule" and .rule.methods==["DELETE","PATCH","POST","PUT"] and .rule.path=="/'"$(tr 'A-Z' 'a-z' <<<"$TEST_ORG_REPO")"'" and .user=="agent" and (.id|length)>0 and (.reason|length)>0' <<<"$entry" >/dev/null \
+  && pass "log records the matched rule (with methods), reason, flow id and guest user" "$entry" || fail "log records rule, reason, id and user" "$entry"
+entry=$(admin sudo grep '"event": "response"' /var/log/egress/decisions.log | grep '"host": "github.com"' | tail -1)
+jq -e '.event=="response" and .status>=200 and .status<500 and (.upstream_ip|length)>0 and .user=="agent"' <<<"$entry" >/dev/null \
+  && pass "log records the upstream response (status, size, upstream IP)" "$entry" || fail "log records the upstream response" "$entry"
+rule forget github.com "/$TEST_ORG_REPO" -m POST,PUT,PATCH,DELETE
+rule allow -m GET,HEAD example.com
+as_agent 'rm -f /tmp/m.out; (curl -sS --max-time 20 -o /dev/null -w "%{http_code}" -X POST https://example.com > /tmp/m.out 2>&1; echo " rc=$?" >> /tmp/m.out) >/dev/null 2>&1 </dev/null &' >/dev/null
+sleep 6
+out=$(as_agent 'cat /tmp/m.out'); entry=$(admin sudo grep '"method": "POST", "host": "example.com"' /var/log/egress/decisions.log | tail -1)
+if [ -z "$out" ] && jq -e '.decision=="held" and .near_rules[0].methods==["GET","HEAD"]' <<<"$entry" >/dev/null; then pass "POST is held when only GET/HEAD are allowed; log names the near-miss rule" "$entry"; else fail "POST held when only GET/HEAD allowed" "out=[$out] $entry"; fi
+rule deny -m POST example.com
+sleep 2
+out=$(as_agent 'cat /tmp/m.out'); grep -q '^403' <<<"$out" && pass "held POST released as 403 once a method deny rule covers it" "$out" || fail "held POST released as 403" "$out"
+out=$(admin sudo egress-rule allow -m 'GE@T' example.com 2>&1); [ $? != 0 ] && pass "malformed method name is rejected, not widened to any method" "$out" || fail "malformed method name is rejected" "$out"
+rule forget example.com
 rule forget github.com
 
 echo "== dev server not reachable from host =="
@@ -116,6 +151,7 @@ $hostcurl"; fi
 # Leave a throwaway marker for --post-reset to find after ./reset.sh. The .invalid TLD can never
 # resolve, so the rule matches no real traffic; reset.sh strips it from the saved rules and
 # --post-reset removes it from the live VM.
+install_rules "$SNAP"; restored=1
 rule allow verify-persist.invalid
 as_agent 'echo marker > /home/agent/session-marker' >/dev/null
 

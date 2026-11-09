@@ -1,4 +1,45 @@
 {
   "version": 1,
-  "rules": []
+  "rules": [
+    {
+      "action": "allow",
+      "host": "pypi.org",
+      "path": null
+    },
+    {
+      "action": "allow",
+      "host": "files.pythonhosted.org",
+      "path": null
+    },
+    {
+      "action": "allow",
+      "host": "registry.npmjs.org",
+      "path": null
+    },
+    {
+      "action": "allow",
+      "host": "ports.ubuntu.com",
+      "path": "/ubuntu-ports"
+    },
+    {
+      "action": "deny",
+      "host": "motd.ubuntu.com",
+      "path": null
+    },
+    {
+      "action": "deny",
+      "host": "esm.ubuntu.com",
+      "path": null
+    },
+    {
+      "action": "deny",
+      "host": "changelogs.ubuntu.com",
+      "path": null
+    },
+    {
+      "action": "deny",
+      "host": "contracts.canonical.com",
+      "path": null
+    }
+  ]
 }

@@ -6,6 +6,8 @@
 - {key: X, ctx: [flowlist, flowview], cmd: "egress.deny_host @focus", help: "deny host"}
 - {key: p, ctx: [flowlist, flowview], cmd: "egress.allow_path @focus", help: "allow first two path segments (org/repo)"}
 - {key: P, ctx: [flowlist, flowview], cmd: "egress.deny_path @focus", help: "deny first two path segments"}
+- {key: "3", ctx: [flowlist, flowview], cmd: "egress.allow_path_method @focus", help: "allow this method on first two path segments"}
+- {key: "4", ctx: [flowlist, flowview], cmd: "egress.deny_path_method @focus", help: "deny this method on first two path segments"}
 - {key: t, ctx: [flowlist, flowview], cmd: "egress.passthrough_host @focus", help: "passthrough host (no TLS interception)"}
 - {key: F, ctx: [flowlist, flowview], cmd: "egress.forget @focus", help: "forget all rules for this host"}
 - {key: L, ctx: [flowlist, flowview], cmd: "egress.list", help: "list rules in the event log"}

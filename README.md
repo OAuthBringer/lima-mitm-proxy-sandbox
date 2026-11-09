@@ -9,7 +9,8 @@ All state lives under this checkout (`LIMA_HOME=<checkout>/.lima`, set by `env.s
 Lima keeps elsewhere is its download cache. Run the commands below from the checkout root, and
 `source env.sh` in any shell where you want to run `limactl` against this VM. The `Makefile`
 sets `LIMA_HOME` itself; run `make` for the list of lifecycle targets.
-See [docs/TESTING.md](docs/TESTING.md) for how to verify and manually test the sandbox.
+See [docs/TESTING.md](docs/TESTING.md) for how to verify and manually test the sandbox, and
+[docs/DESIGN.md](docs/DESIGN.md) for why it exists, the policy decisions, and what is planned next.
 
 ## Layout
 
@@ -64,6 +65,7 @@ then press a key on the focused flow:
 | `x` | deny this request once (403) | `egress.deny_once` |
 | `A` / `X` | allow / deny the **host**, any path | `egress.allow_host` / `egress.deny_host` |
 | `p` / `P` | allow / deny the **first two path segments**, e.g. `github.com/<org>/<repo>/*` | `egress.allow_path` / `egress.deny_path` |
+| `3` / `4` | allow / deny the **first two path segments, for this request's method only**, e.g. `GET github.com/<org>/<repo>/*` | `egress.allow_path_method` / `egress.deny_path_method` |
 | `1` / `2` | allow / deny a **custom prefix** (prompt opens; type `/org/repo/subdir`, Enter) | `egress.allow_prefix` / `egress.deny_prefix` |
 | `t` | **passthrough**: no TLS interception for this host (hostname-only decision) | `egress.passthrough_host` |
 | `F` | forget every rule for this host | `egress.forget` |
@@ -73,8 +75,14 @@ Other held flows that a new rule now covers are released or denied automatically
 Clear the held-only filter with `:set view_filter=` to see all traffic; `?` shows help.
 
 Precedence: path-prefix rule > host rule; longer prefix > shorter; exact host > `*.wildcard`;
-deny wins a tie. Path matching is case-insensitive, strips the query, collapses `..`, and
-treats `/org/repo.git/...` as `/org/repo`.
+method-restricted rule > any-method rule; deny wins a tie. Path matching is case-insensitive,
+strips the query, collapses `..`, and treats `/org/repo.git/...` as `/org/repo`.
+
+A rule can be limited to HTTP methods (`GET,HEAD`, `POST,PUT,PATCH,DELETE`, ...); without a method
+list it matches any method. A request that matches no rule is held, including one whose method is
+excluded by the rules on its path, so deny the methods you never want explicitly. Method rules only
+apply to traffic the proxy decrypts: passthrough hosts and raw TCP/UDP show no method, so they
+ignore method-restricted rules and a passthrough rule cannot be given methods.
 
 ### Adding or revoking rules without the UI
 
@@ -83,11 +91,17 @@ limactl shell agent -- sudo egress-rule list
 limactl shell agent -- sudo egress-rule allow registry.npmjs.org
 limactl shell agent -- sudo egress-rule allow github.com /my-org/my-repo
 limactl shell agent -- sudo egress-rule deny  github.com /my-org/my-repo/blob
+limactl shell agent -- sudo egress-rule allow -m GET,HEAD github.com /my-org/my-repo      # read-only
+limactl shell agent -- sudo egress-rule deny  -m POST,PUT,PATCH,DELETE api.github.com /   # "/" = any path
 limactl shell agent -- sudo egress-rule forget registry.npmjs.org
+limactl shell agent -- sudo egress-rule forget -m GET,HEAD github.com /my-org/my-repo     # just that rule
 ```
 
-The proxy reloads `/var/lib/egress/rules.json` within a second. Decisions are logged
-(timestamp, method, host, path, decision only) to `/var/log/egress/decisions.log`.
+The proxy reloads `/var/lib/egress/rules.json` within a second. Every decision, held request,
+release, upstream response and rule change is logged as one JSON line to
+`/var/log/egress/decisions.log`: the request's method, host, path, the matching rule, the reason,
+which guest user made it, and the upstream status. Bodies, header values (except `User-Agent`)
+and query values are never logged. See [docs/LOGGING.md](docs/LOGGING.md) for every field.
 `rules.json` on the host is refreshed by `reset.sh`; it contains hostnames you have visited,
 so think before committing it to a public repo.
 

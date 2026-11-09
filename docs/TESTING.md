@@ -24,8 +24,16 @@ is not exercised. Expect `ALL CHECKS PASSED`; any failure prints the evidence it
 | path-level rule | A path allow for one repo does not open the rest of the host; a longer deny prefix beats a shorter allow |
 | dev server isolation | A server listening in the guest is not reachable from the host and opens no new host listeners |
 
-Rules the script adds for the test hosts (`example.com`, `github.com`, the package registries and
-Ubuntu mirrors) are forgotten when their section finishes.
+The script snapshots the live rules, runs against an empty rule set (so your default allow list
+cannot mask a result), and restores the snapshot when it finishes, including when it aborts. Rules
+it adds for the test hosts (`example.com`, `github.com`, the package registries and Ubuntu mirrors)
+are forgotten when their section finishes.
+
+The "method rules and the detailed log" section proves that a method-restricted deny refuses a
+`POST` on a repo path where `GET` still works, that a request matching only other methods' rules
+is held with the near-miss rule named in the log, that a held request is released as 403 once a
+deny covers it, that a malformed method name is rejected rather than widening the rule, and that
+the log records the matched rule, reason, flow id, guest user and upstream response.
 
 ### Persistence across rebuilds
 
